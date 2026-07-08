@@ -229,20 +229,36 @@ router.post("/collections", async (req, res) => {
   try {
     const { name, color, icon } = req.body;
 
-    if (!name?.trim()) {
+    const cleanName = name?.trim();
+
+    if (!cleanName) {
       return res.status(400).json({
         error: "Collection name required",
+      });
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("qrmail_collections")
+      .select("*")
+      .ilike("name", cleanName)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existing) {
+      return res.json({
+        collection: existing,
       });
     }
 
     const { data, error } = await supabase
       .from("qrmail_collections")
       .insert({
-        name: name.trim(),
+        name: cleanName,
         color: color || null,
         icon: icon || "📁",
       })
-      .select()
+      .select("*")
       .single();
 
     if (error) throw error;
@@ -251,7 +267,7 @@ router.post("/collections", async (req, res) => {
       collection: data,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Create collection error:", err);
     res.status(500).json({
       error: "Failed to create collection",
     });
