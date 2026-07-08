@@ -201,4 +201,143 @@ router.delete("/attachments/:attachmentId", async (req, res) => {
   }
 });
 
+/* ---------------------------------------
+   Collections
+--------------------------------------- */
+
+router.get("/collections", async (_req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("qrmail_collections")
+      .select("*")
+      .order("name");
+
+    if (error) throw error;
+
+    res.json({
+      collections: data || [],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to load collections",
+    });
+  }
+});
+
+router.post("/collections", async (req, res) => {
+  try {
+    const { name, color, icon } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({
+        error: "Collection name required",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("qrmail_collections")
+      .insert({
+        name: name.trim(),
+        color: color || null,
+        icon: icon || "📁",
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      collection: data,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to create collection",
+    });
+  }
+});
+
+router.get("/events/:eventId/collections", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const { data, error } = await supabase
+      .from("qrmail_event_collections")
+      .select(`
+        collection_id,
+        qrmail_collections (
+          id,
+          name,
+          color,
+          icon
+        )
+      `)
+      .eq("event_id", eventId);
+
+    if (error) throw error;
+
+    res.json({
+      collections:
+        data?.map((row: any) => row.qrmail_collections).filter(Boolean) || [],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to load event collections",
+    });
+  }
+});
+
+router.post("/events/:eventId/collections", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { collection_id } = req.body;
+
+    const { error } = await supabase
+      .from("qrmail_event_collections")
+      .upsert({
+        event_id: eventId,
+        collection_id,
+      });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to add collection",
+    });
+  }
+});
+
+router.delete(
+  "/events/:eventId/collections/:collectionId",
+  async (req, res) => {
+    try {
+      const { eventId, collectionId } = req.params;
+
+      const { error } = await supabase
+        .from("qrmail_event_collections")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("collection_id", collectionId);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        error: "Failed to remove collection",
+      });
+    }
+  }
+);
+
 export default router;
