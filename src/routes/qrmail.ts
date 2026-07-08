@@ -227,7 +227,7 @@ router.get("/collections", async (_req, res) => {
 
 router.post("/collections", async (req, res) => {
   try {
-    const { name, color, icon } = req.body;
+    const { name, color, icon, user_id } = req.body;
 
     const cleanName = name?.trim();
 
@@ -237,9 +237,16 @@ router.post("/collections", async (req, res) => {
       });
     }
 
+    if (!user_id) {
+      return res.status(400).json({
+        error: "user_id required",
+      });
+    }
+
     const { data: existing, error: existingError } = await supabase
       .from("qrmail_collections")
       .select("*")
+      .eq("user_id", user_id)
       .ilike("name", cleanName)
       .maybeSingle();
 
@@ -254,7 +261,9 @@ router.post("/collections", async (req, res) => {
     const { data, error } = await supabase
       .from("qrmail_collections")
       .insert({
+        user_id,
         name: cleanName,
+        description: null,
         color: color || null,
         icon: icon || "📁",
       })
@@ -266,10 +275,17 @@ router.post("/collections", async (req, res) => {
     res.status(201).json({
       collection: data,
     });
-  } catch (err) {
-    console.error("Create collection error:", err);
+  } catch (err: any) {
+    console.error("Create collection error:", {
+      message: err?.message,
+      details: err?.details,
+      hint: err?.hint,
+      code: err?.code,
+    });
+
     res.status(500).json({
       error: "Failed to create collection",
+      details: err?.message,
     });
   }
 });
