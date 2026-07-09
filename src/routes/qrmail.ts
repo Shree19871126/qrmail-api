@@ -33,6 +33,84 @@ router.get("/events", async (_req, res) => {
   }
 });
 
+router.post("/events", async (req, res) => {
+  try {
+    const {
+      qr_code_id,
+      scan_event_id,
+      event_type,
+      title,
+      description,
+      status,
+      amount,
+      currency,
+      notes,
+      tags,
+      intent,
+      lifecycle_status,
+      outcome,
+      next_action,
+      next_action_at,
+      metadata,
+    } = req.body;
+
+    if (!qr_code_id) {
+      return res.status(400).json({ error: "qr_code_id required" });
+    }
+
+    if (!event_type) {
+      return res.status(400).json({ error: "event_type required" });
+    }
+
+    const insertPayload: Record<string, any> = {
+      qr_code_id,
+      scan_event_id: scan_event_id || null,
+      event_type,
+      title: title || `${event_type} event`,
+      description: description || null,
+      status: status || "recorded",
+      amount: amount === "" || amount === undefined ? null : Number(amount),
+      currency: currency || null,
+      notes: notes || null,
+      tags: Array.isArray(tags) ? tags : [],
+      intent: intent || null,
+      lifecycle_status: lifecycle_status || "open",
+      outcome: outcome || null,
+      next_action: next_action || null,
+      next_action_at: next_action_at || null,
+      metadata: metadata || {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("qrmail_events")
+      .insert(insertPayload)
+      .select(`
+        *,
+        qrmail_qr_codes (*),
+        qrmail_scan_events (*)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json(data);
+  } catch (error: any) {
+    console.error("Create QR Mail event error:", {
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      code: error?.code,
+    });
+
+    res.status(500).json({
+      error: "Failed to create QR Mail event",
+      details: error?.message,
+    });
+  }
+});
+
 router.get("/events/:eventId", async (req, res) => {
   try {
     const { eventId } = req.params;
