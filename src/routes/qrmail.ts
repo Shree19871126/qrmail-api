@@ -74,7 +74,7 @@ router.post("/events", async (req, res) => {
       notes: notes || null,
       tags: Array.isArray(tags) ? tags : [],
       intent: intent || null,
-      lifecycle_status: lifecycle_status || "open",
+      lifecycle_status: lifecycle_status || "Recorded",
       outcome: outcome || null,
       next_action: next_action || null,
       next_action_at: next_action_at || null,
